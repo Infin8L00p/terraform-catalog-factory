@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Launch role for Service Catalog (deployed via StackSets to all target accounts)
+
+Parameters:
+  RoleName:
+    Type: String
+  ManagedPolicyArns:
+    Type: List<String>
+    Default: []
+  InlinePolicyJson:
+    Type: String
+    Default: ""
+  PermissionsBoundaryArn:
+    Type: String
+    Default: ""
+  FactoryAccountId:
+    Type: String
+  RegionHint:
+    Type: String
+    Default: "eu-west-2"
+  AllowCfnAssume:
+    Type: String
+    AllowedValues: ["true","false"]
+    Default: "true"
+
+Conditions:
+  HasBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryArn, "" ] ]
+  HasInline:   !Not [ !Equals [ !Ref InlinePolicyJson, "" ] ]
+  AllowCFN:    !Equals [ !Ref AllowCfnAssume, "true" ]
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      PermissionsBoundary: !If [ HasBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue" ]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowServiceCatalog
+            Effect: Allow
+            Principal: { Service: servicecatalog.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { aws:SourceAccount: !Ref FactoryAccountId }
+              ArnLike: { aws:SourceArn: !Sub "arn:${AWS::Partition}:servicecatalog:${RegionHint}:${FactoryAccountId}:*" }
+          - Sid: AllowCloudFormation
+            Effect: Allow
+            Principal: { Service: cloudformation.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition: { "Fn::If": [ AllowCFN, { }, { "Null": "Null" } ] }
+      ManagedPolicyArns: !Ref ManagedPolicyArns
+      Policies:
+        - !If
+          - HasInline
+          - PolicyName: !Sub "${RoleName}-inline"
+            PolicyDocument: !Ref InlinePolicyJson
+          - !Ref "AWS::NoValue"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt Role.Arn
+  RoleName:
+    Value: !Ref Role
