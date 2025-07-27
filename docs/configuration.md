@@ -39,7 +39,7 @@ launch_roles = [
   {
     name                     = "SC-DataRole"
     managed_policy_arns      = [ "arn:aws:iam::aws:policy/AmazonS3FullAccess" ]
-    inline_policy_json       = jsonencode({ Version="2012-10-17", Statement=[ … ] })
+    inline_policy            = { Version = "2012-10-17", Statement = [ … ] } # HCL object
     permissions_boundary_arn = ""   # optional
     allow_cfn_assume         = true # allow CFN to assume the role as well
   }

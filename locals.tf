@@ -1,5 +1,5 @@
 locals {
-# Build the CodeConnections ARN from partition, region, account, and the input UUID
+  # Build the CodeConnections ARN from partition, region, account, and the input UUID
 
   # Map portfolios by key
   portfolios_by_key = { for p in var.portfolios : p.key => p }
@@ -27,5 +27,10 @@ locals {
   git_products_by_key = {
     for g in local.git_products :
     "${g.portfolio_key}:${g.name}" => g
+  }
+
+  ou_arns_by_id = {
+    for ou in toset([for s in local.shares : s.ou_id]) :
+    ou => "arn:${data.aws_partition.current.partition}:organizations::${data.aws_organizations_organization.current.master_account_id}:ou/${data.aws_organizations_organization.current.id}/${ou}"
   }
 }

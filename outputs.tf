@@ -1,6 +1,6 @@
 output "portfolio_ids" {
   description = "Map of portfolio key -> portfolio ID"
-  value = { for k, p in aws_servicecatalog_portfolio.portfolios : k => p.id }
+  value       = { for k, p in aws_servicecatalog_portfolio.portfolios : k => p.id }
 }
 
 output "git_product_ids" {

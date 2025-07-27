@@ -9,7 +9,7 @@ variable "region" {
 variable "codeconnections_connection_name" {
   description = "Name of the CodeConnections connection (e.g., 'github-org-connection')"
   type        = string
-}# ── Multiple portfolios, with nested products ────────────────────────────────
+} # ── Multiple portfolios, with nested products ────────────────────────────────
 variable "portfolios" {
   description = <<-EOT
     Portfolios to create and share, each with default launch role settings
@@ -29,15 +29,15 @@ variable "portfolios" {
     share_ou_ids           = list(string)
     launch_role_arn        = optional(string, "")
     launch_local_role_name = optional(string, "")
-    products               = list(object({
-      name                    = string
-      owner                   = string
-      repository              = string
-      branch                  = string
-      artifact_path           = string
-      initial_version         = optional(string, "initial")
-      launch_role_arn         = optional(string, "")
-      launch_local_role_name  = optional(string, "")
+    products = list(object({
+      name                   = string
+      owner                  = string
+      repository             = string
+      branch                 = string
+      artifact_path          = string
+      initial_version        = optional(string, "initial")
+      launch_role_arn        = optional(string, "")
+      launch_local_role_name = optional(string, "")
     }))
   }))
 }
@@ -57,7 +57,7 @@ variable "launch_roles" {
   type = list(object({
     name                     = string
     managed_policy_arns      = optional(list(string), [])
-    inline_policy_json       = optional(string, "")
+    inline_policy            = optional(any)
     permissions_boundary_arn = optional(string, "")
     allow_cfn_assume         = optional(bool, true)
   }))

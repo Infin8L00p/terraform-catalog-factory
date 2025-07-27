@@ -10,12 +10,12 @@ resource "aws_cloudformation_stack_set" "launch_role" {
   permission_model = "SERVICE_MANAGED"
   call_as          = "DELEGATED_ADMIN"
 
-  template_body    = file("${path.module}/templates/launch-role.yaml")
+  template_body = file("${path.module}/templates/launch-role.yaml")
 
   operation_preferences {
-    max_concurrent_count     = 10
-    failure_tolerance_count  = 1
-    region_concurrency_type  = "SEQUENTIAL"
+    max_concurrent_count    = 10
+    failure_tolerance_count = 1
+    region_concurrency_type = "SEQUENTIAL"
   }
 
   auto_deployment {
@@ -26,15 +26,15 @@ resource "aws_cloudformation_stack_set" "launch_role" {
   parameters = {
     RoleName               = each.value.name
     ManagedPolicyArns      = join(",", try(each.value.managed_policy_arns, []))
-    InlinePolicyJson       = try(each.value.inline_policy_json, "")
+    InlinePolicyJson       = try(jsonencode(each.value.inline_policy), "")
     PermissionsBoundaryArn = try(each.value.permissions_boundary_arn, "")
     FactoryAccountId       = data.aws_caller_identity.current.account_id
-    RegionHint             = var.region
+    RegionHint             = data.aws_region.current.name
     AllowCfnAssume         = tostring(try(each.value.allow_cfn_assume, true))
   }
 
   lifecycle {
-    ignore_changes = [ administration_role_arn, execution_role_name ]
+    ignore_changes = [administration_role_arn, execution_role_name]
   }
 }
 
@@ -42,8 +42,8 @@ resource "aws_cloudformation_stack_set" "launch_role" {
 resource "aws_cloudformation_stack_set_instance" "launch_role_ou" {
   for_each = aws_cloudformation_stack_set.launch_role
 
-  stack_set_name = each.value.name
-  region         = var.region
+  stack_set_name            = each.value.name
+  stack_set_instance_region = data.aws_region.current.region
 
   deployment_targets {
     organizational_unit_ids = var.target_ou_ids
@@ -54,8 +54,8 @@ resource "aws_cloudformation_stack_set_instance" "launch_role_ou" {
 resource "aws_cloudformation_stack_set_instance" "launch_role_factory" {
   for_each = aws_cloudformation_stack_set.launch_role
 
-  stack_set_name = each.value.name
-  region         = var.region
+  stack_set_name            = each.value.name
+  stack_set_instance_region = data.aws_region.current.region
 
   deployment_targets {
     accounts = [data.aws_caller_identity.current.account_id]

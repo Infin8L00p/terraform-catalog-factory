@@ -1,17 +1,3 @@
-terraform {
-  required_providers {
-    aws = { source = "hashicorp/aws", version = ">= 5.0" }
-  }
-}
-
-provider "aws" {
-  region = var.region
-}
-
-# Optional helpers
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
 # ── Create portfolios ────────────────────────────────────────────────────────
 
 # ── Single CodeConnections connection (created/managed here) ────────────────
@@ -23,19 +9,21 @@ resource "aws_codeconnections_connection" "sc" {
 }
 
 resource "aws_servicecatalog_portfolio" "portfolios" {
-  for_each     = local.portfolios_by_key
-  name         = each.value.name
-  description  = try(each.value.description, "")
-  provider_name= try(each.value.provider_name, "PlatformTeam")
+  for_each      = local.portfolios_by_key
+  name          = each.value.name
+  description   = try(each.value.description, "")
+  provider_name = try(each.value.provider_name, "PlatformTeam")
 }
 
 # ── Share each portfolio to its OU list ──────────────────────────────────────
 resource "aws_servicecatalog_portfolio_share" "share_ou" {
-  for_each         = { for s in local.shares : "${s.portfolio_key}:${s.ou_id}" => s }
-  portfolio_id     = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
-  type             = "ORGANIZATIONAL_UNIT"
-  value            = each.value.ou_id
-  share_tag_options= false
+  for_each     = { for s in local.shares : "${s.portfolio_key}:${s.ou_id}" => s }
+  portfolio_id = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+
+  # tflint-ignore: aws_servicecatalog_portfolio_share_invalid_type
+  type              = "ORGANIZATIONAL_UNIT"
+  principal_id      = local.ou_arns_by_id[each.value.ou_id]
+  share_tag_options = false
 }
 
 # ── Git-synced products via CloudFormation (association done in CFN) ────────
@@ -54,7 +42,7 @@ resource "aws_cloudformation_stack" "git_products" {
     ArtifactPath       = each.value.artifact_path
     InitialVersionName = try(each.value.initial_version, "initial")
 
-    PortfolioId        = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+    PortfolioId = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
   }
 }
 
@@ -80,6 +68,6 @@ resource "aws_servicecatalog_constraint" "launch_git" {
 
   lifecycle {
     # Prevent churn if you later move constraints elsewhere
-    ignore_changes = [ parameters ]
+    ignore_changes = [parameters]
   }
 }
