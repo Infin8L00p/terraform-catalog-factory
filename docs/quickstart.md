@@ -8,7 +8,7 @@
 
 2. **Configure**
    - In `terraform.tfvars`, set:
-     - `codeconnections_connection_name = "<your-github-connection-name>"`
+     - `codeconnections_connection_id = "<your-github-connection-name>"`
      - `portfolios = [ { … portfolios and nested products … } ]`
      - `target_ou_ids = [ "ou-xxxx-…" ]`
      - `launch_roles = [ { name = "SC-…Role", … } ]`
@@ -21,7 +21,7 @@
 
 4. **Authorize the connection (one‑time)**
    - In the AWS Console → *Developer Tools* → *Connections*, select the connection
-     you just created and click **Complete connection** to authorize GitHub.
+     you just created and click **Ensure the connection is already authorized (since you are reusing an existing one)** to authorize GitHub.
 
 5. **Verify**
    - Portfolios exist and are shared to your OUs.

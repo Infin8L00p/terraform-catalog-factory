@@ -1,73 +1,78 @@
-# ── Create portfolios ────────────────────────────────────────────────────────
-
-# ── Single CodeConnections connection (created/managed here) ────────────────
-# NOTE: Newly-created connections start in PENDING. Complete the OAuth handshake
-# in the AWS Console before products can use this connection.
-resource "aws_codeconnections_connection" "sc" {
-  name          = var.codeconnections_connection_name
-  provider_type = "GitHub"
-}
-
+# Create portfolios
 resource "aws_servicecatalog_portfolio" "portfolios" {
-  for_each      = local.portfolios_by_key
+  for_each      = { for p in var.portfolios : p.key => p }
   name          = each.value.name
   description   = try(each.value.description, "")
   provider_name = try(each.value.provider_name, "PlatformTeam")
 }
 
-# ── Share each portfolio to its OU list ──────────────────────────────────────
+# Share portfolios to OUs (now using target_ou_ids)
 resource "aws_servicecatalog_portfolio_share" "share_ou" {
-  for_each     = { for s in local.shares : "${s.portfolio_key}:${s.ou_id}" => s }
-  portfolio_id = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+  for_each = local.portfolio_ou_shares_map
 
+  portfolio_id = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
   # tflint-ignore: aws_servicecatalog_portfolio_share_invalid_type
   type              = "ORGANIZATIONAL_UNIT"
   principal_id      = local.ou_arns_by_id[each.value.ou_id]
   share_tag_options = false
+
+  # IMPORTANT: let the portfolio carry principal associations to the recipient
+  share_principals = true
 }
 
-# ── Git-synced products via CloudFormation (association done in CFN) ────────
-resource "aws_cloudformation_stack" "git_products" {
-  for_each = local.git_products_by_key
 
-  name          = "sc-product-${replace(each.key, "/[^a-zA-Z0-9-]/", "-")}"
+# Publish Git-synced products (one CFN stack per product that wires SourceConnection)
+resource "aws_cloudformation_stack" "git_products" {
+  for_each = local.products_by_key
+
+  name = "sc-product-${lower(replace(each.key, " ", "-"))}"
+
   template_body = file("${path.module}/templates/sc-gitsync-product.yaml")
 
   parameters = {
-    ProductName        = each.value.name
-    ProductOwner       = each.value.owner
-    ConnectionArn      = aws_codeconnections_connection.sc.arn
-    Repository         = each.value.repository
-    Branch             = each.value.branch
-    ArtifactPath       = each.value.artifact_path
-    InitialVersionName = try(each.value.initial_version, "initial")
+    ProductName   = each.value.name
+    ProductOwner  = each.value.owner
+    ConnectionArn = local.codeconnections_arn
+    Repository    = each.value.repository # "org/repo"
+    Branch        = each.value.branch
+    ArtifactPath  = each.value.artifact_path # path to template file in repo
+    PortfolioId   = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
 
-    PortfolioId = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+    # We prefer to set the launch role via a Terraform constraint below:
+    LaunchRoleArn       = ""
+    LaunchLocalRoleName = ""
   }
 }
 
-# ── LaunchRoleConstraint per (Portfolio ↔ Product) association (TF-managed) ─
+# Apply LaunchRoleConstraint in Terraform, after roles are rolled out by StackSets
 resource "aws_servicecatalog_constraint" "launch_git" {
-  for_each = local.git_products_by_key
+  for_each = local.products_by_key
 
-  portfolio_id = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
-  product_id   = aws_cloudformation_stack.git_products[each.key].outputs["ProductId"]
-  type         = "LAUNCH"
+  # Optional safety: create constraints only after launch roles are deployed.
+  depends_on = [
+    aws_cloudformation_stack_instances.launch_role_ou
+  ]
 
-  # Precedence: product LocalRoleName > product RoleArn > portfolio LocalRoleName > portfolio RoleArn
-  parameters = (
-    try(each.value.launch_local_role_name, "") != "" ? jsonencode({ LocalRoleName = each.value.launch_local_role_name }) :
-    (
-      try(each.value.launch_role_arn, "") != "" ? jsonencode({ RoleArn = each.value.launch_role_arn }) :
-      (
-        try(local.portfolios_by_key[each.value.portfolio_key].launch_local_role_name, "") != "" ? jsonencode({ LocalRoleName = local.portfolios_by_key[each.value.portfolio_key].launch_local_role_name }) :
-        jsonencode({ RoleArn = try(local.portfolios_by_key[each.value.portfolio_key].launch_role_arn, "") })
-      )
-    )
-  )
+  type            = "LAUNCH"
+  portfolio_id    = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+  product_id      = aws_cloudformation_stack.git_products[each.key].outputs.ProductId
+  parameters      = local.constraint_params_by_product[each.key]
+  accept_language = "en"
+}
 
-  lifecycle {
-    # Prevent churn if you later move constraints elsewhere
-    ignore_changes = [parameters]
-  }
+resource "aws_servicecatalog_principal_portfolio_association" "portfolio_principals" {
+  for_each = local.portfolio_associations_map
+
+  portfolio_id   = aws_servicecatalog_portfolio.portfolios[each.value.portfolio_key].id
+  principal_arn  = each.value.principal_arn
+  principal_type = each.value.principal_type # "IAM" or "IAM_PATTERN"
+}
+
+# Portfolio access for pipelines across all shared accounts (IAM pattern)
+resource "aws_servicecatalog_principal_portfolio_association" "pipeline_role_pattern" {
+  for_each     = local.portfolios_by_key
+  portfolio_id = aws_servicecatalog_portfolio.portfolios[each.key].id
+
+  principal_arn  = "arn:${data.aws_partition.current.partition}:iam:::role/${var.pipeline_role_name}"
+  principal_type = "IAM_PATTERN"
 }

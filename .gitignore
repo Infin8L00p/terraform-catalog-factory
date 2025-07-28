@@ -16,3 +16,6 @@ override.tf.json
 # Local .terraformrc or terraform.rc
 .terraformrc
 terraform.rc
+
+# Mac Files
+.DS_Store

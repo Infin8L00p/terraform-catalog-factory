@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Service Catalog pipeline role (assumed by CodeBuild/CodePipeline in-account)
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: SC-Pipeline
+  ManagedPolicyArns:
+    Type: List<String>
+  InlinePolicyJson:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasInline: !Not [ !Equals [ !Ref InlinePolicyJson, "" ] ]
+
+Resources:
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCodePipeline
+            Effect: Allow
+            Principal: { Service: codepipeline.amazonaws.com }
+            Action: sts:AssumeRole
+          - Sid: AllowCodeBuild
+            Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns: !Ref ManagedPolicyArns
+      Policies:
+        - !If
+          - HasInline
+          - PolicyName: !Sub "${RoleName}-inline"
+            PolicyDocument: !Ref InlinePolicyJson
+          - !Ref "AWS::NoValue"
+
+Outputs:
+  RoleName: { Value: !Ref PipelineRole }
+  RoleArn:  { Value: !GetAtt PipelineRole.Arn }

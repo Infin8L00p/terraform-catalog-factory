@@ -1,21 +1,21 @@
-# ── Launch role StackSets (service-managed) ──────────────────────────────────
-locals {
-  roles_by_name = { for r in var.launch_roles : r.name => r }
-}
-
 resource "aws_cloudformation_stack_set" "launch_role" {
-  for_each         = local.roles_by_name
-  name             = "sc-launch-role-${each.key}"
-  description      = "Service Catalog launch role ${each.key} (deployed via Organizations)"
+  for_each = local.portfolio_launch_roles_by_key
+
+  name             = "sc-launch-role-${each.value.portfolio_key}-${each.value.role_name}"
+  description      = "SC launch role ${each.value.role_name} for portfolio ${each.value.portfolio_key}"
   permission_model = "SERVICE_MANAGED"
   call_as          = "DELEGATED_ADMIN"
+  region           = var.region
+  capabilities     = ["CAPABILITY_NAMED_IAM", "CAPABILITY_IAM"]
 
   template_body = file("${path.module}/templates/launch-role.yaml")
 
-  operation_preferences {
-    max_concurrent_count    = 10
-    failure_tolerance_count = 1
-    region_concurrency_type = "SEQUENTIAL"
+  parameters = {
+    RoleName               = each.value.role_name
+    ManagedPolicyArns      = join(",", each.value.managed_policy_arns)
+    InlinePolicyJson       = try(jsonencode(each.value.inline_policy), "")
+    PermissionsBoundaryArn = each.value.permissions_boundary_arn
+    AllowCfnAssume         = tostring(each.value.allow_cfn_assume)
   }
 
   auto_deployment {
@@ -23,41 +23,33 @@ resource "aws_cloudformation_stack_set" "launch_role" {
     retain_stacks_on_account_removal = false
   }
 
-  parameters = {
-    RoleName               = each.value.name
-    ManagedPolicyArns      = join(",", try(each.value.managed_policy_arns, []))
-    InlinePolicyJson       = try(jsonencode(each.value.inline_policy), "")
-    PermissionsBoundaryArn = try(each.value.permissions_boundary_arn, "")
-    FactoryAccountId       = data.aws_caller_identity.current.account_id
-    RegionHint             = data.aws_region.current.name
-    AllowCfnAssume         = tostring(try(each.value.allow_cfn_assume, true))
-  }
-
-  lifecycle {
-    ignore_changes = [administration_role_arn, execution_role_name]
+  operation_preferences {
+    failure_tolerance_count = 1
+    max_concurrent_count    = 10
+    region_concurrency_type = "SEQUENTIAL"
   }
 }
 
-# Deploy to target OUs (same region as Factory; IAM is global)
-resource "aws_cloudformation_stack_set_instance" "launch_role_ou" {
-  for_each = aws_cloudformation_stack_set.launch_role
+# ── Deploy to OUs (bulk) ───────────────────────────────────────────────────────
+resource "aws_cloudformation_stack_instances" "launch_role_ou" {
+  for_each = local.portfolio_launch_roles_by_key
 
-  stack_set_name            = each.value.name
-  stack_set_instance_region = data.aws_region.current.region
+  depends_on = [aws_cloudformation_stack_set.launch_role]
 
+  stack_set_name = aws_cloudformation_stack_set.launch_role[each.key].name
+  call_as        = "DELEGATED_ADMIN"
+
+  # Regions to deploy into
+  regions = [data.aws_region.current.region]
+
+  # Service-managed: target OUs only on CREATE (no accounts, no account_filter_type)
   deployment_targets {
-    organizational_unit_ids = var.target_ou_ids
+    organizational_unit_ids = local.portfolios_by_key[each.value.portfolio_key].target_ou_ids
   }
-}
 
-# Ensure the role also exists in the Factory/admin account
-resource "aws_cloudformation_stack_set_instance" "launch_role_factory" {
-  for_each = aws_cloudformation_stack_set.launch_role
-
-  stack_set_name            = each.value.name
-  stack_set_instance_region = data.aws_region.current.region
-
-  deployment_targets {
-    accounts = [data.aws_caller_identity.current.account_id]
+  operation_preferences {
+    failure_tolerance_count = 1
+    max_concurrent_count    = 10
+    region_concurrency_type = "SEQUENTIAL"
   }
 }

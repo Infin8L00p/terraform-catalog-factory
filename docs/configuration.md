@@ -1,7 +1,7 @@
 # Configuration
 
 ## Required inputs
-- `codeconnections_connection_name` — name for the **AWS CodeConnections** connection (GitHub).
+- `codeconnections_connection_id` — name for the **AWS CodeConnections** connection (GitHub).
 - `portfolios` — list of portfolio objects.
 - `target_ou_ids` — OUs that receive **launch roles** via StackSets.
 - `launch_roles` — list of IAM role definitions to roll out (names must match your LaunchRoleConstraints).

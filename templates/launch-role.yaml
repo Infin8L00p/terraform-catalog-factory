@@ -6,18 +6,12 @@ Parameters:
     Type: String
   ManagedPolicyArns:
     Type: List<String>
-    Default: []
   InlinePolicyJson:
     Type: String
     Default: ""
   PermissionsBoundaryArn:
     Type: String
     Default: ""
-  FactoryAccountId:
-    Type: String
-  RegionHint:
-    Type: String
-    Default: "eu-west-2"
   AllowCfnAssume:
     Type: String
     AllowedValues: ["true","false"]
@@ -42,13 +36,22 @@ Resources:
             Principal: { Service: servicecatalog.amazonaws.com }
             Action: sts:AssumeRole
             Condition:
-              StringEquals: { aws:SourceAccount: !Ref FactoryAccountId }
-              ArnLike: { aws:SourceArn: !Sub "arn:${AWS::Partition}:servicecatalog:${RegionHint}:${FactoryAccountId}:*" }
-          - Sid: AllowCloudFormation
+              StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
+              ArnLike: { aws:SourceArn: !Sub "arn:${AWS::Partition}:servicecatalog:${AWS::Region}:${AWS::AccountId}:*" }
+          - Sid: AllowStackSets
             Effect: Allow
-            Principal: { Service: cloudformation.amazonaws.com }
+            Principal:
+              Service:
+                - member.org.stacksets.cloudformation.amazonaws.com
+                - stacksets.cloudformation.amazonaws.com
             Action: sts:AssumeRole
-            Condition: { "Fn::If": [ AllowCFN, { }, { "Null": "Null" } ] }
+          - !If
+            - AllowCFN
+            - Sid: AllowCloudFormationDirect
+              Effect: Allow
+              Principal: { Service: cloudformation.amazonaws.com }
+              Action: sts:AssumeRole
+            - !Ref "AWS::NoValue"
       ManagedPolicyArns: !Ref ManagedPolicyArns
       Policies:
         - !If
