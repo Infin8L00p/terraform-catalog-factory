@@ -52,7 +52,6 @@ variable "portfolios" {
   }))
 }
 
-
 variable "pipeline_role_name" {
   description = "Name of the in-account role pipelines will use to call Service Catalog"
   type        = string

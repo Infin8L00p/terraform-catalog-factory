@@ -5,6 +5,7 @@
    - **CloudFormation StackSets** trusted access enabled and this account is a **delegated admin**.
    - You know your target **OU IDs**.
    - A GitHub org/repo containing your CloudFormation templates.
+   - The dedicated service catalog account has an authorised codeconnection for the GitHub repo
 
 2. **Configure**
    - In `terraform.tfvars`, set:
@@ -19,11 +20,7 @@
    terraform apply
    ```
 
-4. **Authorize the connection (one‑time)**
-   - In the AWS Console → *Developer Tools* → *Connections*, select the connection
-     you just created and click **Ensure the connection is already authorized (since you are reusing an existing one)** to authorize GitHub.
-
-5. **Verify**
+4. **Verify**
    - Portfolios exist and are shared to your OUs.
    - Products appear under the correct portfolios.
    - Launch roles exist in the Factory account and in consumer accounts (via StackSets).
