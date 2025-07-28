@@ -18,6 +18,13 @@ Terraform Catalog Factory is a framework for managing AWS Service Catalog portfo
 | [Overview](docs/overview.md) | High level description of project flow |
 | [Quickstart](docs/quickstart.md) | Bootstrapping and initial setup |
 
+## Related Repositories
+
+| Name | Description |
+| ---- | ----------- |
+| [catalog-templates](https://github.com/Infin8L00p/catalog-templates) | Contains CFN templates that are GitSynced to products. |
+| [terraform-catalog-puppet](https://github.com/orgs/Infin8L00p/repositories) | Terraform module used to provision products in member accounts. |
+
 ## Getting Started
 
 Clone the repository, configure your Terraform `tfvars` file to define portfolios, products, and OUs, and run Terraform from a delegated administrator account.

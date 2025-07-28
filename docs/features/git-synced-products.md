@@ -1,11 +1,11 @@
 # Git-Synced Products using AWS CodeConnections
 
-The factory supports products defined in external Git repositories using AWS CodeConnections (formerly CodeStar Connections).
+The factory supports products defined in external Git repositories using AWS CodeConnections.
 
 ## Benefits
-- Reuse infrastructure-as-code stored in Git
-- Automate version bumps with CI/CD
-- Integrate with GitHub, GitLab, Bitbucket, etc.
+✅ Reuse infrastructure-as-code stored in Git.
+✅ Automate version bumps with CI/CD.
+✅ Integrate with GitHub.
 
 ## Implementation
 - CloudFormation templates reference a `SourceConnection` block with:

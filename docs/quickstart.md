@@ -1,18 +1,20 @@
 # Quick start
 
 1. **Prerequisites**
-   - AWS Organizations enabled.
-   - **CloudFormation StackSets** trusted access enabled and this account is a **delegated admin**.
-   - You know your target **OU IDs**.
+   - An AWS Organization.
+   - A dedicated account for managing Service Catalog for the organization.
+   - Cloudformation, Organizations & Service Catalog delegated to the dedicated account.
    - A GitHub org/repo containing your CloudFormation templates.
-   - The dedicated service catalog account has an authorised codeconnection for the GitHub repo
+   - Code Connection authorised for the GitHub repo containing your CloudFormation templates.
 
 2. **Configure**
    - In `terraform.tfvars`, set:
-     - `codeconnections_connection_id = "<your-github-connection-name>"`
-     - `portfolios = [ { … portfolios and nested products … } ]`
-     - `target_ou_ids = [ "ou-xxxx-…" ]`
-     - `launch_roles = [ { name = "SC-…Role", … } ]`
+```hcl
+codeconnections_connection_id = "<your-github-connection-name>"
+region = "<your-preferred-aws-region>"
+portfolios = [ { … portfolios and nested products … } ]
+launch_roles = [ { name = "SC-…Role", … } ]
+```
 
 3. **Deploy**
    ```bash
