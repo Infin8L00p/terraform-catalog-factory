@@ -17,7 +17,6 @@ Terraform Catalog Factory is a framework for managing AWS Service Catalog portfo
 |------|-------------|
 | [Overview](docs/overview.md) | High level description of project flow |
 | [Quickstart](docs/quickstart.md) | Bootstrapping and initial setup |
-| [Launch Roles & Constraints](docs/launch-roles-and-constraints.md) | Explanation of roles and launch constraints |
 
 ## Getting Started
 
