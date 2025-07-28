@@ -1,20 +1,39 @@
-# Launch roles & constraints
+# Launch Roles and Constraints
 
-## How it works
-- A **LaunchRoleConstraint** is attached to the **portfolio ↔ product association**.
-- This project creates that constraint in **Terraform** (`aws_servicecatalog_constraint`).
-- The constraint points to either a **LocalRoleName** (recommended) or a **RoleArn**.
+This document outlines the roles used by the Service Catalog factory and explains their responsibilities.
 
-## Precedence
-When resolving which role to use, the project applies this order:
-1. Product `launch_local_role_name`
-2. Product `launch_role_arn`
-3. Portfolio `launch_local_role_name`
-4. Portfolio `launch_role_arn`
+## SC-<PortfolioKey>Role
 
-> Ensure at least one of the above is set per product.
+This is the **launch role** used by Service Catalog when provisioning products in member accounts.
 
-## Rolling out the roles
-- The same **LocalRoleName** must exist in the **Factory account** and in every **consumer account**.
-- This project uses **StackSets (service‑managed)** to deploy those roles to all accounts in your `target_ou_ids`
-  and also to the Factory account.
+- Deployed via CloudFormation StackSet to all relevant accounts
+- Trusts the Service Catalog principal for launch
+- Can be scoped with permission boundaries or inline policies
+- Named dynamically using the pattern: `SC-<PortfolioKey>Role`
+
+## SC-EndUser
+
+This is an optional **interactive IAM role** meant for human users (e.g. developers) to browse and provision products manually in Service Catalog.
+
+- Typically provisioned via a separate bootstrap or identity management project
+- Associated with portfolios via `PrincipalPortfolioAssociation`
+- Uses the role pattern `SC-EndUser`
+
+## SC-PipelineRole
+
+This is an **automation role** used by pipelines (e.g. CodePipeline, GitHub Actions) to provision products in workload accounts.
+
+- Deployed via StackSet to every account where a product may be launched
+- Optional trust relationships for CodePipeline or CodeBuild can be enabled
+- Associated with Service Catalog portfolios for product provisioning
+
+## Launch Constraints
+
+Launch constraints bind a product to a specific IAM role (e.g. SC-DataRole) to control how it is provisioned.
+
+Each constraint includes:
+
+- Portfolio ID
+- Product ID
+- LaunchRoleName (refers to the local IAM role deployed)
+- Applied in the central (factory) account
